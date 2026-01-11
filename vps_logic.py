@@ -13,7 +13,7 @@ def obtener_ip():
 
 def obtener_puertos():
     try:
-        # Filtro corregido para que no salga la tabla de la captura
+        # Extrae solo los números de puerto para evitar tablas sucias
         cmd = "netstat -tunlp | grep LISTEN | awk '{print $4}' | grep -oP '(?<=:)\\d+$' | sort -nu | xargs | sed 's/ /, /g'"
         p = subprocess.check_output(cmd, shell=True).decode().strip()
         return p if p else "22, 80, 443"
@@ -21,6 +21,7 @@ def obtener_puertos():
 
 def listar_usuarios_ssh():
     try:
+        # Lista usuarios reales del sistema [cite: 2026-01-08]
         cmd = "awk -F: '$3 >= 1000 && $1 != \"nobody\" {print $1}' /etc/passwd"
         return subprocess.check_output(cmd, shell=True).decode().split()
     except: return []
