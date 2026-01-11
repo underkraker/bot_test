@@ -14,13 +14,11 @@ def menu_admin():
     return markup
 
 def btn_cancelar():
-    # Teclado físico para cancelar durante la escritura de datos
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     markup.add(types.KeyboardButton("❌ Cancelar"))
     return markup
 
 def volver_adm():
-    # Botón inline para regresar al menú principal
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("🔙 Volver al Menú", callback_data="adm_main"))
     return markup
