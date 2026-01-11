@@ -12,5 +12,10 @@ def obtener_ip():
     except: return "127.0.0.1"
 
 def obtener_puertos():
-    try: return subprocess.check_output("netstat -tlpn | grep LISTEN | awk '{print }' | awk -F: '{print }' | sort -n | uniq | tr '\\n' ' '", shell=True).decode().strip()
-    except: return "22, 80, 443"
+    try: 
+        # Comando corregido para filtrar solo los números de puertos externos activos
+        cmd = "netstat -tunlp | grep LISTEN | awk '{print $4}' | awk -F: '{print $NF}' | sort -nu | grep -v '^$' | xargs | sed 's/ /, /g'"
+        return subprocess.check_output(cmd, shell=True).decode().strip()
+    except: 
+        return "22, 80, 443"
+        
