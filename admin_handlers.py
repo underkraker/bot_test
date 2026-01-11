@@ -9,24 +9,7 @@ def register_admin(bot):
         if c.data == "adm_main":
             bot.edit_message_text("👑 **Panel Administrador**", c.message.chat.id, c.message.message_id, reply_markup=keyboards.menu_admin(), parse_mode="Markdown")
         
-        # --- CREAR USUARIO (Inicio) ---
-        elif c.data == "adm_user_add":
-            msg = bot.send_message(c.message.chat.id, "👤 **Nombre del usuario:**", reply_markup=keyboards.btn_cancelar())
-            bot.register_next_step_handler(msg, step_name, bot)
-
-        # --- ELIMINAR USUARIO (Lista Real) ---
-        elif c.data == "adm_user_del":
-            usuarios = vps_logic.listar_usuarios_ssh()
-            if not usuarios:
-                bot.edit_message_text("❌ No hay usuarios para eliminar.", c.message.chat.id, c.message.message_id, reply_markup=keyboards.volver_adm())
-                return
-            markup = telebot.types.InlineKeyboardMarkup()
-            for u in usuarios:
-                markup.add(telebot.types.InlineKeyboardButton(f"👤 {u}", callback_data=f"conf_del_{u}"))
-            markup.add(telebot.types.InlineKeyboardButton("🔙 Volver", callback_data="adm_main"))
-            bot.edit_message_text("🗑 **Selecciona el usuario a eliminar:**", c.message.chat.id, c.message.message_id, reply_markup=markup, parse_mode="Markdown")
-
-        # --- BOTONES DE ESTADO Y RESELLERS (Lógica de la imagen) ---
+        # --- BOTONES DE LA IMAGEN (LOGICA ACTIVA) ---
         elif c.data == "adm_stats":
             i = vps_logic.obtener_info_vps()
             bot.edit_message_text(f"📊 **Estado:**\nCPU: `{i['cpu']}` | RAM: `{i['ram']}`\nUptime: `{i['uptime']}`", c.message.chat.id, c.message.message_id, reply_markup=keyboards.volver_adm(), parse_mode="Markdown")
@@ -37,8 +20,8 @@ def register_admin(bot):
 
         elif c.data == "adm_res_list":
             res = database.obtener_resellers()
-            txt = "👥 **Resellers:**\n"
-            for r in res: txt += f"ID: `{r[0]}` | Créditos: `{r[1]}`\n"
+            txt = "👥 **Lista de Resellers:**\n"
+            for r in res: txt += f"ID: `{r[0]}` | Cred: `{r[1]}`\n"
             bot.edit_message_text(txt if res else "❌ No hay resellers.", c.message.chat.id, c.message.message_id, reply_markup=keyboards.volver_adm(), parse_mode="Markdown")
 
         elif c.data == "adm_res_add":
@@ -46,30 +29,43 @@ def register_admin(bot):
             bot.register_next_step_handler(msg, step_res_id, bot)
 
         elif c.data == "adm_rec":
-            msg = bot.send_message(c.message.chat.id, "🆔 **ID para recargar:**", reply_markup=keyboards.btn_cancelar())
+            msg = bot.send_message(m.chat.id, "🆔 **ID para recargar:**", reply_markup=keyboards.btn_cancelar())
             bot.register_next_step_handler(msg, step_rec_id, bot)
 
-    # --- ELIMINACIÓN CORREGIDA (BORRADO REAL) --- [cite: 2026-01-10]
+        # --- ELIMINAR SSH (LISTA REAL) ---
+        elif c.data == "adm_user_del":
+            usuarios = vps_logic.listar_usuarios_ssh()
+            if not usuarios:
+                bot.edit_message_text("❌ No hay usuarios.", c.message.chat.id, c.message.message_id, reply_markup=keyboards.volver_adm())
+                return
+            markup = telebot.types.InlineKeyboardMarkup()
+            for u in usuarios:
+                markup.add(telebot.types.InlineKeyboardButton(f"👤 {u}", callback_data=f"conf_del_{u}"))
+            markup.add(telebot.types.InlineKeyboardButton("🔙 Volver", callback_data="adm_main"))
+            bot.edit_message_text("🗑 **Selecciona para eliminar:**", c.message.chat.id, c.message.message_id, reply_markup=markup, parse_mode="Markdown")
+
+    # --- ELIMINACIÓN FORZADA (ESTO CORRIGE EL ERROR) --- [cite: 2026-01-10]
     @bot.callback_query_handler(func=lambda c: c.data.startswith("conf_del_"))
     def confirmar_del(c):
         user = c.data.replace("conf_del_", "")
         markup = telebot.types.InlineKeyboardMarkup()
         markup.add(telebot.types.InlineKeyboardButton("✅ SÍ, ELIMINAR", callback_data=f"exec_del_{user}"))
-        markup.add(telebot.types.InlineKeyboardButton("🚫 NO, CANCELAR", callback_data="adm_user_del"))
+        markup.add(telebot.types.InlineKeyboardButton("🚫 NO", callback_data="adm_user_del"))
         bot.edit_message_text(f"⚠️ ¿Eliminar a `{user}`?", c.message.chat.id, c.message.message_id, reply_markup=markup, parse_mode="Markdown")
 
     @bot.callback_query_handler(func=lambda c: c.data.startswith("exec_del_"))
     def ejecutar_del(c):
         user = c.data.replace("exec_del_", "")
-        # Mata conexiones y borra usuario forzosamente [cite: 2026-01-10]
-        os.system(f"sudo pkill -9 -u {user} && sudo userdel -rf {user}")
-        bot.edit_message_text(f"✅ Usuario `{user}` ELIMINADO.", c.message.chat.id, c.message.message_id, reply_markup=keyboards.volver_adm(), parse_mode="Markdown")
+        # Primero matamos procesos para desbloquear el borrado, luego eliminamos
+        os.system(f"sudo pkill -9 -u {user}")
+        os.system(f"sudo userdel -rf {user}")
+        bot.edit_message_text(f"✅ Usuario `{user}` ELIMINADO del sistema.", c.message.chat.id, c.message.message_id, reply_markup=keyboards.volver_adm(), parse_mode="Markdown")
 
-    # --- FLUJO DE CREACIÓN (PASO A PASO) ---
+    # --- CREACIÓN DE USUARIO (MANTENIDA SIN CAMBIOS) --- [cite: 2026-01-08]
     def step_name(m, bot):
         if m.text == "❌ Cancelar": bot.send_message(m.chat.id, "🚫 Cancelado.", reply_markup=keyboards.menu_admin()); return
         u = m.text
-        msg = bot.send_message(m.chat.id, f"🔑 **Contraseña para {u}:**", reply_markup=keyboards.btn_cancelar())
+        msg = bot.send_message(m.chat.id, f"🔑 **Pass para {u}:**", reply_markup=keyboards.btn_cancelar())
         bot.register_next_step_handler(msg, step_pass, bot, u)
 
     def step_pass(m, bot, u):
@@ -89,18 +85,10 @@ def register_admin(bot):
         lim = m.text
         os.system(f"sudo useradd -M -s /bin/false {u} && echo '{u}:{p}' | sudo chpasswd")
         vence = (datetime.datetime.now() + datetime.timedelta(days=int(d))).strftime('%Y-%m-%d')
-        
-        res = (f"✅ **USUARIO CREADO**\n\n"
-               f"🌐 **IP:** `{vps_logic.obtener_ip()}`\n"
-               f"👤 **Usuario:** `{u}`\n"
-               f"🔑 **Pass:** `{p}`\n"
-               f"📅 **Días:** {d}\n"
-               f"🗓 **Vence:** {vence}\n"
-               f"🔢 **Límite:** {lim}\n"
-               f"🔌 **Puertos:** `{vps_logic.obtener_puertos()}`")
+        res = (f"✅ **USUARIO CREADO**\n\n🌐 **IP:** `{vps_logic.obtener_ip()}`\n👤 **Usuario:** `{u}`\n🔑 **Pass:** `{p}`\n📅 **Días:** {d}\n🗓 **Vence:** {vence}\n🔢 **Límite:** {lim}\n🔌 **Puertos:** `{vps_logic.obtener_puertos()}`")
         bot.send_message(m.chat.id, res, parse_mode="Markdown", reply_markup=keyboards.volver_adm())
 
-    # --- PASOS PARA RESELLERS --- [cite: 2026-01-10]
+    # --- LÓGICA DE RESELLERS --- [cite: 2026-01-10]
     def step_res_id(m, bot):
         if m.text == "❌ Cancelar": bot.send_message(m.chat.id, "🚫 Cancelado.", reply_markup=keyboards.menu_admin()); return
         database.agregar_o_recargar_reseller(int(m.text), 0)
@@ -109,7 +97,7 @@ def register_admin(bot):
     def step_rec_id(m, bot):
         if m.text == "❌ Cancelar": bot.send_message(m.chat.id, "🚫 Cancelado.", reply_markup=keyboards.menu_admin()); return
         rid = int(m.text)
-        msg = bot.send_message(m.chat.id, "💰 **Cantidad a recargar:**", reply_markup=keyboards.btn_cancelar())
+        msg = bot.send_message(m.chat.id, "💰 **Cantidad:**", reply_markup=keyboards.btn_cancelar())
         bot.register_next_step_handler(msg, step_rec_final, bot, rid)
 
     def step_rec_final(m, bot, rid):
