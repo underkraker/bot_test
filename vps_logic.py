@@ -2,7 +2,7 @@ import subprocess, psutil
 
 def obtener_info_vps():
     return {
-        "cpu": f"{psutil.cpu_percent(interval=None)}%", # Optimizado para rapidez [cite: 2026-01-10]
+        "cpu": f"{psutil.cpu_percent(interval=None)}%", 
         "ram": f"{psutil.virtual_memory().percent}%",
         "uptime": subprocess.check_output("uptime -p", shell=True).decode().strip()
     }
@@ -12,17 +12,15 @@ def obtener_ip():
     except: return "127.0.0.1"
 
 def obtener_puertos():
-    try: 
-        # Filtro corregido para mostrar solo números de puertos reales
+    try:
+        # Solo extrae los números de puerto para evitar el error de la imagen
         cmd = "netstat -tunlp | grep LISTEN | awk '{print $4}' | grep -oP '(?<=:)\\d+$' | sort -nu | xargs | sed 's/ /, /g'"
-        puertos = subprocess.check_output(cmd, shell=True).decode().strip()
-        return puertos if puertos else "22, 80, 443"
+        p = subprocess.check_output(cmd, shell=True).decode().strip()
+        return p if p else "22, 80, 443"
     except: return "22, 80, 443"
 
 def listar_usuarios_ssh():
     try:
-        # Lista usuarios reales para la selección por botones [cite: 2026-01-10]
         cmd = "awk -F: '$3 >= 1000 && $1 != \"nobody\" {print $1}' /etc/passwd"
-        usuarios = subprocess.check_output(cmd, shell=True).decode().split()
-        return usuarios
+        return subprocess.check_output(cmd, shell=True).decode().split()
     except: return []
