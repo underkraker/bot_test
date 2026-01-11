@@ -13,7 +13,7 @@ def obtener_ip():
 
 def obtener_puertos():
     try:
-        # Solo extrae los números de puerto para evitar el error de la imagen
+        # Filtro corregido para que no salga la tabla de la captura
         cmd = "netstat -tunlp | grep LISTEN | awk '{print $4}' | grep -oP '(?<=:)\\d+$' | sort -nu | xargs | sed 's/ /, /g'"
         p = subprocess.check_output(cmd, shell=True).decode().strip()
         return p if p else "22, 80, 443"
